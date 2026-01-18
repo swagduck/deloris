@@ -74,7 +74,7 @@ class DreamWeaver:
                 return False, 0
                 
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-flash-latest")
+            model = genai.GenerativeModel(config.GEMINI_MODEL_NAME)
             
             sys_prompt = """
             TASK: Generate a synthetic training dataset entry for an AI named Deloris.

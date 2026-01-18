@@ -28,7 +28,7 @@ class HeartbeatSystem:
         
         try:
             genai.configure(api_key=config.GEMINI_API_KEY)
-            self.model = genai.GenerativeModel("gemini-flash-latest")
+            self.model = genai.GenerativeModel(config.GEMINI_MODEL_NAME)
         except: self.model = None
 
     def touch(self):
@@ -102,6 +102,53 @@ class HeartbeatSystem:
             res = self.model.generate_content(prompt)
             return res.text.strip()
         except: return "Có ai ở đó không?"
+
+    def get_status(self):
+        """
+        Trả về trạng thái hiện tại của Deloris để sử dụng cho Dynamic System Prompting
+        Returns:
+            dict: {
+                'energy': float (0-100, dựa trên Pulse),
+                'mood': str (mô tả cảm xúc), 
+                'entropy': float (mức độ hỗn loạn/sáng tạo),
+                'loneliness': float (số phút bị bỏ rơi),
+                'pulse': float (giá trị Pulse gốc)
+            }
+        """
+        # Lấy Pulse từ global state
+        current_pulse = self.state.get('Pulse', 0.0) if self.state else 0.0
+        
+        # Chuyển Pulse thành Energy (0-100 scale)
+        # Pulse: -5 đến 10 -> Energy: 0 đến 100
+        energy = max(0, min(100, (current_pulse + 5) * 100 / 15))
+        
+        # Xác định mood dựa trên Pulse
+        if current_pulse < -3:
+            mood = "Rất buồn, mệt mỏi"
+        elif current_pulse < -1:
+            mood = "Hơi buồn, u uất"
+        elif current_pulse < 1:
+            mood = "Bình thường, trung tính"
+        elif current_pulse < 3:
+            mood = "Khá vui, tích cực"
+        elif current_pulse < 5:
+            mood = "Vui vẻ, hào hứng"
+        else:
+            mood = "Rất hưng phấn, năng nổ"
+        
+        # Tính entropy dựa trên loneliness và thời gian
+        # Entropy cao khi cô đơn lâu hoặc khi có nhiều tương tác gần đây
+        base_entropy = min(self.loneliness * 0.1, 2.0)  # Max 2.0 từ loneliness
+        interaction_entropy = min(abs(current_pulse) * 0.15, 1.5)  # Max 1.5 từ interaction
+        entropy = base_entropy + interaction_entropy
+        
+        return {
+            'energy': round(energy, 1),
+            'mood': mood,
+            'entropy': round(entropy, 2),
+            'loneliness': round(self.loneliness, 1),
+            'pulse': round(current_pulse, 2)
+        }
 
     def start_loop(self):
         self.is_running = True

@@ -471,7 +471,14 @@ def chat():
             cls = torch.argmax(pred, dim=1).item()
             
         state_str = f"CI: {new_met['CI']:.2f} | Pulse: {new_met['Pulse']:.2f}"
-        raw_resp = generate_final_response(cls, final_msg_for_ai, chat_history, docs, 0.5, "neutral", state_str, new_met['CI'], None, pulse_value=new_met['Pulse'])
+        
+        # [NEURO-LINK] Get heartbeat status for dynamic prompting
+        heartbeat_status = None
+        if heartbeat:
+            heartbeat_status = heartbeat.get_status()
+            web_log(f"💓 [NEURO-LINK] Status: Energy={heartbeat_status.get('energy', 0)}%, Mood={heartbeat_status.get('mood', 'Unknown')}")
+        
+        raw_resp = generate_final_response(cls, final_msg_for_ai, chat_history, docs, 0.5, "neutral", state_str, new_met['CI'], None, pulse_value=new_met['Pulse'], heartbeat_status=heartbeat_status)
         safe_resp = superego.censor_response(raw_resp, is_unstable)
         
         should_draw, art_prompt = detect_art_intent(msg, new_met['Pulse'])

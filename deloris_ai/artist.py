@@ -15,7 +15,7 @@ try:
     api_key = os.environ.get("GEMINI_API_KEY") or getattr(config, "GEMINI_API_KEY", None)
     if api_key:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-flash-latest") # Dùng model nhẹ để dịch cho nhanh
+        model = genai.GenerativeModel(config.GEMINI_MODEL_NAME) # Dùng model nhẹ để dịch cho nhanh
 except: pass
 
 def refine_prompt_with_gemini(user_prompt):

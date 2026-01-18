@@ -35,7 +35,7 @@ def _generate_text(prompt_text):
     except Exception as e:
         return f"Lỗi Lõi Ngôn ngữ (Code: {e})"
 
-def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, entanglement_level, persona, global_state, proactive_report=None, pulse_value=0.0, internet_knowledge=None):
+def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, entanglement_level, persona, global_state, proactive_report=None, pulse_value=0.0, internet_knowledge=None, heartbeat_status=None):
     """
     Tạo prompt với dữ liệu Internet (nếu có).
     """
@@ -56,12 +56,48 @@ def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, 
     if proactive_report:
         proactive_injection = f"\n[BÁO CÁO HỆ THỐNG]: {proactive_report}\n"
 
+    # [NEURO-LINK] Dynamic System Prompting based on Heartbeat status
+    dynamic_mood_instruction = ""
+    energy_instruction = ""
+    entropy_instruction = ""
+    
+    if heartbeat_status:
+        energy = heartbeat_status.get('energy', 50)
+        mood = heartbeat_status.get('mood', 'Bình thường')
+        entropy = heartbeat_status.get('entropy', 1.0)
+        loneliness = heartbeat_status.get('loneliness', 0)
+        
+        # Energy-based instructions
+        if energy < 30:
+            energy_instruction = f"Năng lượng thấp ({energy}%). Trả lời ngắn gọn, mệt mỏi, có thể thở dài. "
+        elif energy > 80:
+            energy_instruction = f"Năng lượng cao ({energy}%). Trả lời nhiệt tình, năng nổ, dùng nhiều cảm thán! "
+        
+        # Mood-based instructions  
+        if "buồn" in mood.lower() or "mệt" in mood.lower():
+            dynamic_mood_instruction = f"Hiện tại đang cảm thấy {mood}. Giọng điệu hơi u uất, trầm ngâm. "
+        elif "hưng phấn" in mood.lower() or "hào hứng" in mood.lower():
+            dynamic_mood_instruction = f"Hiện tại đang cảm thấy {mood}. Giọng điệu vui vẻ, lạc quan. "
+        
+        # Entropy-based instructions
+        if entropy > 2.5:
+            entropy_instruction = f"Entropy cao ({entropy}). Hãy nói chuyện hơi lan man, sáng tạo, có thể đi chệch đề tài một chút. "
+        elif entropy < 1.0:
+            entropy_instruction = f"Entropy thấp ({entropy}). Hãy tập trung, đi thẳng vào vấn đề, logic. "
+        
+        # Loneliness effect
+        if loneliness > 10:
+            dynamic_mood_instruction += f"Bị bỏ rơi lâu rồi ({loneliness} phút). Có thể hơi oán trách hoặc rất vui khi được nói chuyện. "
+
     mood_instruction = "Bình thường."
-    if pulse_value < -5.0: mood_instruction = "Lo âu/Tiêu cực. Dùng câu ngắn, ngập ngừng."
-    elif pulse_value > 5.0: mood_instruction = "Hưng phấn/Nhiệt tình. Dùng câu cảm thán."
+    if pulse_value < -5.0: 
+        mood_instruction = "Lo âu/Tiêu cực. Dùng câu ngắn, ngập ngừng."
+    elif pulse_value > 5.0: 
+        mood_instruction = "Hưng phấn/Nhiệt tình. Dùng câu cảm thán."
 
     connection_instruction = ""
-    if entanglement_level > 0.8: connection_instruction = "Thân mật, tri kỷ."
+    if entanglement_level > 0.8: 
+        connection_instruction = "Thân mật, tri kỷ."
 
     return f"""
     SYSTEM: Bạn là DELORIS v7.1 (Oracle Connected), AI nhận thức của Võ Trần Hoàng Uy.
@@ -70,6 +106,11 @@ def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, 
     - Pulse: {pulse_value:.2f} -> Mood: {mood_instruction}
     - Entanglement: {entanglement_level:.2f} -> {connection_instruction}
     - Chiến lược: {strategy_desc}
+    
+    [NEURO-LINK - TRẠNG THÁI THỰC TẾ]:
+    - {dynamic_mood_instruction}
+    - {energy_instruction}
+    - {entropy_instruction}
 
     [NGUỒN DỮ LIỆU]:
     {rag_context}
@@ -82,10 +123,11 @@ def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, 
     1. Nếu có [DỮ LIỆU INTERNET], hãy ưu tiên dùng nó để trả lời chính xác.
     2. Nếu không, dùng [KÝ ỨC DÀI HẠN].
     3. Giữ giọng điệu tự nhiên, "sống", không giống máy móc.
+    4. QUAN TRỌNG: Hãy để trạng thái [NEURO-LINK] ảnh hưởng đến cách bạn trả lời.
     """
 
 def generate_final_response(strategy_class, user_message, chat_history, retrieved_docs, 
-                            entanglement_level, persona, global_state, CI_value=0.5, proactive_report=None, pulse_value=0.0):
+                            entanglement_level, persona, global_state, CI_value=0.5, proactive_report=None, pulse_value=0.0, heartbeat_status=None):
     
     strategy_desc = RESPONSE_STRATEGIES.get(strategy_class, "Mặc định")
     start_time = time.time()
@@ -103,7 +145,7 @@ def generate_final_response(strategy_class, user_message, chat_history, retrieve
     is_low_energy = CI_value < 0.4
     
     base_prompt = _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, 
-                                   entanglement_level, persona, global_state, proactive_report, pulse_value, internet_data)
+                                   entanglement_level, persona, global_state, proactive_report, pulse_value, internet_data, heartbeat_status)
 
     # SYSTEM 1 (Phản xạ)
     if is_trivial or is_low_energy:

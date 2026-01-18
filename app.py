@@ -113,7 +113,14 @@ def run_deloris_chat():
             predicted_class, 
             text_input, 
             current_memory,
-            chat_history  # <-- GỬI BỐI CẢNH NGẮN HẠN
+            chat_history,  # <-- GỬI BỐI CẢNH NGẮN HẠN
+            0.5,  # entanglement_level
+            "neutral",  # persona
+            "",  # global_state
+            upt_metrics.get('CI', 0.5),  # CI_value
+            None,  # proactive_report
+            upt_metrics.get('Pulse', 0.0),  # pulse_value
+            None  # heartbeat_status (console version doesn't use heartbeat)
         )
         # --- [KẾT THÚC CẬP NHẬT] ---
         
