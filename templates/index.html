@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DELORIS v9.0 | THE LIVING AGENT</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        svg: { fontCache: "global" },
+      };
+    </script>
+    <script
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+    ></script>
+    <style>
+      :root {
+        --bg-deep: #020408;
+        --panel-bg: rgba(10, 15, 25, 0.9);
+        --neon-cyan: #00f3ff;
+        --neon-gold: #ffd700;
+        --neon-red: #ff2a6d;
+        --neon-purple: #bc13fe;
+        --text-main: #e0fbfc;
+        --text-dim: #6a7a8c;
+        --border-color: rgba(0, 243, 255, 0.2);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        outline: none;
+        user-select: none;
+        scrollbar-width: thin;
+        scrollbar-color: var(--neon-cyan) #111;
+      }
+
+      body {
+        background-color: var(--bg-deep);
+        color: var(--text-main);
+        font-family: "Rajdhani", sans-serif;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        background-image: linear-gradient(
+            rgba(0, 243, 255, 0.03) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+          radial-gradient(circle at center, rgba(0, 20, 40, 1) 0%, #020408 100%);
+        background-size: 40px 40px, 40px 40px, 100% 100%;
+      }
+
+      .app-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr 280px;
+        grid-template-rows: 50px 1fr 120px;
+        height: 100vh;
+        width: 100vw;
+        gap: 8px;
+        padding: 8px;
+      }
+
+      .sci-fi-panel {
+        background: var(--panel-bg);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        clip-path: polygon(
+          0 0,
+          100% 0,
+          100% calc(100% - 10px),
+          calc(100% - 10px) 100%,
+          0 100%
+        );
+        box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05);
+      }
+      .sci-fi-panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.1) 0px,
+          rgba(0, 0, 0, 0.1) 1px,
+          transparent 1px,
+          transparent 2px
+        );
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0.5;
+      }
+
+      .panel-head {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        background: rgba(0, 243, 255, 0.05);
+        border-bottom: 1px solid var(--border-color);
+        font-family: "Orbitron";
+        font-size: 0.65rem;
+        color: var(--neon-cyan);
+        letter-spacing: 1px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 35px;
+        position: relative;
+      }
+      .panel-head::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 20px;
+        height: 20px;
+        border-right: 2px solid var(--neon-cyan);
+        border-bottom: 2px solid var(--neon-cyan);
+        opacity: 0.5;
+      }
+
+      .header {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        background: #050505;
+        border-bottom: 2px solid var(--border-color);
+        z-index: 10;
+        clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);
+      }
+      .logo {
+        font-family: "Orbitron";
+        font-weight: 900;
+        font-size: 1.2rem;
+        letter-spacing: 2px;
+        color: #fff;
+        text-transform: uppercase;
+      }
+      .logo span {
+        color: var(--neon-cyan);
+      }
+      .sys-badge {
+        font-family: "JetBrains Mono";
+        font-size: 0.7rem;
+        color: var(--neon-green);
+        border: 1px solid var(--neon-green);
+        padding: 3px 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 0 5px var(--neon-green);
+      }
+
+      .sidebar-left {
+        grid-row: 2/3;
+        grid-column: 1/2;
+      }
+      .metrics-container {
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .metric-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .m-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        font-family: "Orbitron";
+      }
+      .m-val {
+        font-family: "JetBrains Mono";
+        font-weight: bold;
+      }
+      .sci-fi-bar-track {
+        height: 8px;
+        background: #0a0a0a;
+        border: 1px solid #333;
+        position: relative;
+        overflow: hidden;
+        clip-path: polygon(0 0, 100% 0, 98% 100%, 0% 100%);
+      }
+      .sci-fi-bar-fill {
+        height: 100%;
+        width: 50%;
+        transition: width 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+        position: relative;
+      }
+
+      .center-stage {
+        grid-row: 2/3;
+        grid-column: 2/3;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: hidden;
+      }
+      .avatar-dock {
+        flex-shrink: 0;
+        height: 220px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(
+          circle at center,
+          rgba(0, 243, 255, 0.05) 0%,
+          transparent 70%
+        );
+        border-bottom: 1px solid var(--border-color);
+        position: relative;
+      }
+      .holo-core {
+        width: 160px;
+        height: 160px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .core-ring-outer {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px dashed var(--neon-cyan);
+        animation: spin 20s linear infinite;
+        opacity: 0.3;
+        transition: all 0.1s ease-out;
+      }
+      .core-ring-mid {
+        position: absolute;
+        width: 80%;
+        height: 80%;
+        border-radius: 50%;
+        border: 2px solid var(--neon-cyan);
+        border-left-color: transparent;
+        border-right-color: transparent;
+        animation: spin-rev 5s linear infinite;
+        box-shadow: 0 0 15px var(--neon-cyan);
+        transition: all 0.1s ease-out;
+      }
+      .core-eye {
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        background: var(--neon-cyan);
+        border-radius: 50%;
+        box-shadow: 0 0 30px var(--neon-cyan), inset 0 0 10px #fff;
+        z-index: 2;
+        transition: all 0.05s ease-out;
+      }
+      .spectrum-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        pointer-events: none;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes spin-rev {
+        0% {
+          transform: rotate(360deg);
+        }
+        100% {
+          transform: rotate(0deg);
+        }
+      }
+
+      .chat-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        scroll-behavior: smooth;
+        background: rgba(0, 0, 0, 0.2);
+      }
+      .msg {
+        max-width: 85%;
+        animation: fadeIn 0.2s;
+        position: relative;
+      }
+      .msg.user {
+        align-self: flex-end;
+        text-align: right;
+      }
+      .bubble {
+        padding: 12px 16px;
+        background: #151a25;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        border: 1px solid #333;
+        display: inline-block;
+        text-align: left;
+        word-wrap: break-word;
+        font-family: "JetBrains Mono";
+        position: relative;
+        clip-path: polygon(5% 0, 100% 0, 100% 90%, 95% 100%, 0 100%, 0 10%);
+      }
+      /* --- [FIX] QUAN TRỌNG: CSS ĐỂ ẢNH KHÔNG BỊ TRÀN --- */
+      .bubble img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 5px;
+        margin-top: 10px;
+        border: 1px solid var(--border-color);
+        display: block;
+      }
+      /* ------------------------------------------------ */
+      .msg.user .bubble {
+        background: rgba(0, 243, 255, 0.1);
+        border-color: var(--neon-cyan);
+        color: #fff;
+      }
+      .msg.deloris .bubble {
+        background: rgba(188, 19, 254, 0.1);
+        border-color: var(--neon-purple);
+      }
+      .feedback-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
+        opacity: 0.7;
+      }
+      .thumb-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-dim);
+        padding: 4px 10px;
+        cursor: pointer;
+        font-size: 0.7rem;
+        clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+      }
+      .thumb-btn:hover {
+        color: var(--neon-cyan);
+        background: rgba(0, 243, 255, 0.1);
+      }
+      .thumb-btn.active-good {
+        color: var(--neon-green);
+        border-color: var(--neon-green);
+        background: rgba(10, 255, 0, 0.1);
+      }
+      .thumb-btn.active-bad {
+        color: var(--neon-red);
+        border-color: var(--neon-red);
+        background: rgba(255, 42, 109, 0.1);
+      }
+
+      .input-dock {
+        height: 60px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        padding: 0 15px;
+        gap: 10px;
+        border-top: 1px solid var(--border-color);
+        background: rgba(0, 0, 0, 0.5);
+      }
+      input[type="text"] {
+        flex: 1;
+        background: #050a10;
+        border: 1px solid var(--border-color);
+        padding: 12px;
+        color: var(--neon-cyan);
+        font-family: "JetBrains Mono";
+        font-size: 0.9rem;
+        clip-path: polygon(2% 0, 100% 0, 98% 100%, 0% 100%);
+      }
+      input[type="text"]:focus {
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+      }
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-dim);
+        border: 1px solid var(--border-color);
+        background: rgba(0, 243, 255, 0.05);
+        clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+        transition: 0.2s;
+      }
+      .icon-btn:hover {
+        color: var(--neon-cyan);
+        background: rgba(0, 243, 255, 0.2);
+        box-shadow: 0 0 10px var(--neon-cyan);
+      }
+      .mic-active {
+        color: var(--neon-red) !important;
+        border-color: var(--neon-red) !important;
+        animation: micPulse 1s infinite;
+      }
+      @keyframes micPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(255, 42, 109, 0.4);
+        }
+        100% {
+          box-shadow: 0 0 0 10px transparent;
+        }
+      }
+
+      .sidebar-right {
+        grid-row: 2/3;
+        grid-column: 3/4;
+      }
+      .file-list-wrapper {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+      }
+      .file-card {
+        padding: 10px;
+        background: rgba(0, 243, 255, 0.03);
+        margin-bottom: 5px;
+        font-size: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid var(--border-color);
+        font-family: "JetBrains Mono";
+        clip-path: polygon(0 0, 100% 0, 97% 100%, 0% 100%);
+      }
+      .file-card:hover {
+        background: rgba(0, 243, 255, 0.1);
+      }
+      .f-actions i {
+        margin-left: 10px;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: 0.2s;
+      }
+      .f-actions i:hover {
+        opacity: 1;
+        scale: 1.2;
+        color: var(--neon-cyan);
+      }
+      .f-actions .fa-trash:hover {
+        color: var(--neon-red);
+      }
+      .control-row {
+        padding: 15px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ctrl-btn {
+        width: 100%;
+        padding: 12px;
+        background: rgba(0, 243, 255, 0.05);
+        border: 1px solid var(--border-color);
+        color: var(--text-dim);
+        cursor: pointer;
+        font-family: "Orbitron";
+        font-size: 0.7rem;
+        text-align: left;
+        padding-left: 20px;
+        clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+        transition: 0.3s;
+        position: relative;
+        font-weight: bold;
+      }
+      .ctrl-btn::before {
+        content: ">";
+        position: absolute;
+        left: 5px;
+        opacity: 0;
+        transition: 0.3s;
+        color: var(--neon-cyan);
+      }
+      .ctrl-btn:hover {
+        border-color: var(--neon-cyan);
+        color: #fff;
+        background: rgba(0, 243, 255, 0.15);
+        padding-left: 25px;
+      }
+      .ctrl-btn:hover::before {
+        opacity: 1;
+        left: 10px;
+      }
+      .ctrl-btn.active {
+        border-color: var(--neon-red);
+        color: var(--neon-red);
+        box-shadow: 0 0 15px rgba(255, 42, 109, 0.2);
+      }
+
+      .bottom-deck {
+        grid-row: 3/4;
+        grid-column: 1/-1;
+        border-top: 2px solid var(--border-color);
+        background: #000;
+      }
+      .terminal-box {
+        flex: 1;
+        font-family: "JetBrains Mono";
+        font-size: 0.75rem;
+        padding: 10px 20px;
+        overflow-y: auto;
+        color: var(--neon-green);
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.9) 0px,
+          rgba(0, 0, 0, 0.9) 2px,
+          transparent 2px,
+          transparent 4px
+        );
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #050a10;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--neon-cyan);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-layout">
+      <div class="header">
+        <div class="logo">DELORIS <span>v9.0</span></div>
+        <div class="sys-badge">THE LIVING AGENT</div>
+      </div>
+
+      <div class="sci-fi-panel sidebar-left">
+        <div class="panel-head">
+          <span>SYSTEM STATUS</span> <i class="fas fa-chart-bar"></i>
+        </div>
+        <div class="metrics-container">
+          <div class="metric-group">
+            <div class="m-label">
+              <span>ENERGY (PULSE)</span>
+              <span id="val-pulse" class="m-val" style="color: var(--neon-red)"
+                >0.00</span
+              >
+            </div>
+            <div class="sci-fi-bar-track">
+              <div
+                class="sci-fi-bar-fill"
+                id="bar-pulse"
+                style="background: var(--neon-red); width: 0%"
+              ></div>
+            </div>
+          </div>
+          <div class="metric-group">
+            <div class="m-label">
+              <span>AWARENESS (CI)</span>
+              <span id="val-ci" class="m-val" style="color: var(--neon-cyan)"
+                >0.50</span
+              >
+            </div>
+            <div class="sci-fi-bar-track">
+              <div
+                class="sci-fi-bar-fill"
+                id="bar-ci"
+                style="background: var(--neon-cyan); width: 50%"
+              ></div>
+            </div>
+          </div>
+          <div class="metric-group">
+            <div class="m-label">
+              <span>ENTANGLEMENT</span>
+              <span id="val-ent" class="m-val" style="color: var(--neon-purple)"
+                >0.50</span
+              >
+            </div>
+            <div class="sci-fi-bar-track">
+              <div
+                class="sci-fi-bar-fill"
+                id="bar-ent"
+                style="background: var(--neon-purple); width: 50%"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sci-fi-panel center-stage">
+        <div class="avatar-dock">
+          <div class="holo-core" id="deloris-avatar">
+            <div class="spectrum-ring"></div>
+            <div class="core-ring-outer"></div>
+            <div class="core-ring-mid"></div>
+            <div class="core-eye"></div>
+          </div>
+        </div>
+        <div class="panel-head">
+          <span>NEURAL LINK FEED</span> <span>LIVE</span>
+        </div>
+        <div class="chat-content" id="chatBox">
+          <div class="msg deloris">
+            <div class="bubble">
+              Hệ thống v9.0 đã sẵn sàng. <br />Em có thể nhìn, nghe, vẽ, nhớ và
+              điều khiển máy tính giúp anh.
+            </div>
+          </div>
+        </div>
+        <div class="input-dock">
+          <div class="icon-btn" onclick="toggleMic()" id="btn-mic">
+            <i class="fas fa-microphone"></i>
+          </div>
+          <div
+            class="icon-btn"
+            onclick="document.getElementById('f-img').click()"
+          >
+            <i class="fas fa-camera"></i>
+          </div>
+          <input
+            type="text"
+            id="userInput"
+            placeholder="Enter command..."
+            autocomplete="off"
+          />
+          <div
+            class="icon-btn"
+            onclick="sendMessage()"
+            style="color: var(--neon-cyan); border-color: var(--neon-cyan)"
+          >
+            <i class="fas fa-terminal"></i>
+          </div>
+          <input
+            type="file"
+            id="f-img"
+            style="display: none"
+            accept="image/*"
+          />
+        </div>
+      </div>
+
+      <div class="sci-fi-panel sidebar-right">
+        <div class="panel-head">
+          <span>ENGINEERING DECK</span> <span id="file-count">0 FILES</span>
+        </div>
+        <div class="file-list-wrapper" id="fileList"></div>
+        <div class="control-row">
+          <div
+            class="ctrl-btn"
+            onclick="document.getElementById('f-up').click()"
+          >
+            <i class="fas fa-upload"></i> INGEST FILE DATA
+          </div>
+          <input
+            type="file"
+            id="f-up"
+            style="display: none"
+            onchange="handleUpload(this.files[0])"
+          />
+          <div
+            class="ctrl-btn"
+            onclick="retrainModel()"
+            style="color: var(--neon-purple)"
+          >
+            <i class="fas fa-brain"></i> INITIATE EVOLUTION
+          </div>
+          <div
+            class="ctrl-btn"
+            onclick="triggerSleep()"
+            style="color: var(--neon-gold)"
+          >
+            <i class="fas fa-moon"></i> MEMORY CONSOLIDATION
+          </div>
+          <div
+            class="ctrl-btn"
+            id="btn-sentinel"
+            onclick="toggleSentinel()"
+            style="color: var(--neon-red)"
+          >
+            <i class="fas fa-eye"></i> ACTIVATE SENTINEL
+          </div>
+          <div
+            class="ctrl-btn"
+            onclick="resetMemory()"
+            style="color: var(--text-dim)"
+          >
+            <i class="fas fa-trash"></i> PURGE DATA CORE
+          </div>
+        </div>
+        <video id="webcam" autoplay playsinline style="display: none"></video>
+        <canvas id="cam-canvas" style="display: none"></canvas>
+      </div>
+
+      <div class="sci-fi-panel bottom-deck">
+        <div class="panel-head" style="background: #000">
+          <span>KERNEL SYSTEM LOG</span> <span>/var/log/syslog</span>
+        </div>
+        <div class="terminal-box" id="terminalBox">
+          <div>> [KERNEL] Boot sequence initiated...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let lastUserMsg = "";
+      const avatar = document.getElementById("deloris-avatar");
+
+      // --- AUDIO QUEUE & SELF-SUPPRESSION SYSTEM ---
+      const audioQueue = [];
+      let isSpeaking = false;
+      let isAiSpeaking = false;
+      let audioCtx, analyser, dataArray;
+
+      function initAudioContext() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 512;
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          visualizeAudio();
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+      }
+
+      function playAudio(url) {
+        initAudioContext();
+        audioQueue.push(url);
+        processAudioQueue();
+      }
+
+      function processAudioQueue() {
+        if (isSpeaking || audioQueue.length === 0) return;
+
+        isSpeaking = true;
+        isAiSpeaking = true; // AI nói -> Mic điếc
+        setSpeaking(true);
+
+        if (sentinelActive && rec) {
+          try {
+            rec.stop();
+            console.log("Mic Paused (AI Speaking)");
+          } catch (e) {}
+        }
+
+        const url = audioQueue.shift();
+        const audio = new Audio(url);
+        audio.crossOrigin = "anonymous";
+        const source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        audio.onended = () => {
+          isSpeaking = false;
+          isAiSpeaking = false;
+          setSpeaking(false);
+          if (sentinelActive && rec) {
+            try {
+              rec.start();
+              console.log("Mic Resumed");
+            } catch (e) {}
+          }
+          processAudioQueue();
+        };
+
+        audio.onerror = () => {
+          isSpeaking = false;
+          isAiSpeaking = false;
+          setSpeaking(false);
+          processAudioQueue();
+        };
+        audio.play().catch((e) => {
+          isSpeaking = false;
+          isAiSpeaking = false;
+          setSpeaking(false);
+          processAudioQueue();
+        });
+      }
+
+      // --- SENTINEL SYSTEM (MOONDREAM VISION) ---
+      let sentinelActive = false;
+      let sentinelInterval = null;
+      const video = document.getElementById("webcam");
+      const canvasCam = document.getElementById("cam-canvas");
+      let rec;
+
+      if ("webkitSpeechRecognition" in window) {
+        rec = new webkitSpeechRecognition();
+        rec.lang = "vi-VN";
+        rec.continuous = false;
+        rec.interimResults = false;
+
+        rec.onresult = (e) => {
+          if (isAiSpeaking) return;
+          const t = e.results[0][0].transcript;
+          if (t.trim()) {
+            if (sentinelActive) {
+              userInput.value = t;
+              sendMessage(true); // Background mode
+            } else {
+              userInput.value = t;
+              sendMessage(false);
+            }
+          }
+        };
+
+        rec.onend = () => {
+          if (sentinelActive && !isAiSpeaking) {
+            try {
+              rec.start();
+            } catch (e) {}
+          } else {
+            if (!sentinelActive)
+              document.getElementById("btn-mic").classList.remove("mic-active");
+          }
+        };
+      }
+
+      async function toggleSentinel() {
+        const btn = document.getElementById("btn-sentinel");
+        if (!sentinelActive) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+            });
+            video.srcObject = stream;
+            sentinelActive = true;
+            btn.classList.add("active");
+            btn.innerHTML = '<i class="fas fa-eye"></i> SENTINEL: ACTIVE';
+            addChat("Sentinel Activated. Đang quan sát...", "deloris");
+            if (rec) {
+              try {
+                rec.start();
+              } catch (e) {}
+              document.getElementById("btn-mic").classList.add("mic-active");
+            }
+            // Gửi ảnh mỗi 10s để Moondream phân tích
+            sentinelInterval = setInterval(captureAndSend, 10000);
+          } catch (e) {
+            alert("Error: " + e);
+          }
+        } else {
+          const stream = video.srcObject;
+          if (stream) stream.getTracks().forEach((t) => t.stop());
+          video.srcObject = null;
+          sentinelActive = false;
+          if (rec) rec.stop();
+          document.getElementById("btn-mic").classList.remove("mic-active");
+          clearInterval(sentinelInterval);
+          btn.classList.remove("active");
+          btn.innerHTML = '<i class="fas fa-eye-slash"></i> ACTIVATE SENTINEL';
+          addChat("Sentinel Deactivated.", "deloris");
+        }
+      }
+
+      async function captureAndSend() {
+        if (!sentinelActive) return;
+        canvasCam.width = video.videoWidth;
+        canvasCam.height = video.videoHeight;
+        canvasCam.getContext("2d").drawImage(video, 0, 0);
+        canvasCam.toBlob(async (blob) => {
+          const fd = new FormData();
+          fd.append("file", blob, "sentinel_view.jpg");
+          try {
+            const r = await fetch("/api/sentinel", {
+              method: "POST",
+              body: fd,
+            });
+            const d = await r.json();
+            // Nếu có phản hồi đặc biệt hoặc pulse thay đổi thì cập nhật
+            if (d.pulse) updateAvatarState(d.pulse);
+          } catch (e) {}
+        }, "image/jpeg");
+      }
+
+      // --- VISUALIZATION ---
+      function visualizeAudio() {
+        requestAnimationFrame(visualizeAudio);
+        analyser.getByteFrequencyData(dataArray);
+        let bass = 0;
+        for (let i = 0; i < 10; i++) bass += dataArray[i];
+        bass /= 10;
+        let mids = 0;
+        for (let i = 10; i < 50; i++) mids += dataArray[i];
+        mids /= 40;
+        let highs = 0;
+        for (let i = 50; i < 100; i++) highs += dataArray[i];
+        highs /= 50;
+
+        const core = document.getElementById("deloris-avatar");
+        const ringOuter = core.querySelector(".core-ring-outer");
+        const ringMid = core.querySelector(".core-ring-mid");
+        const eye = core.querySelector(".core-eye");
+
+        ringOuter.style.transform = `scale(${1 + (bass / 255) * 0.5})`;
+        ringOuter.style.opacity = 0.3 + (bass / 255) * 0.7;
+        ringMid.style.transform = `scale(${1 + (mids / 255) * 0.3})`;
+        eye.style.filter = `brightness(${1 + (highs / 255) * 2})`;
+        eye.style.width = `${40 + (highs / 255) * 20}px`;
+        eye.style.height = `${40 + (highs / 255) * 20}px`;
+      }
+
+      function updateAvatarState(pulse) {
+        const ringOuter = document.querySelector(".core-ring-outer");
+        const ringMid = document.querySelector(".core-ring-mid");
+        const eye = document.querySelector(".core-eye");
+        let hue = 180;
+        let sat = 100;
+        if (pulse > 0) {
+          const i = Math.min(pulse / 10, 1);
+          hue = 180 - 130 * i;
+        } else {
+          const i = Math.min(Math.abs(pulse) / 10, 1);
+          hue = 180 + 100 * i;
+          sat = 100 - 50 * i;
+        }
+        const color = `hsl(${hue}, ${sat}%, 50%)`;
+        ringOuter.style.borderColor = color;
+        ringMid.style.borderColor = color;
+        ringMid.style.boxShadow = `0 0 15px ${color}`;
+        eye.style.backgroundColor = color;
+        eye.style.boxShadow = `0 0 30px ${color}, inset 0 0 10px #fff`;
+        document.getElementById("val-pulse").innerText = pulse.toFixed(2);
+        document.getElementById("val-pulse").style.color = color;
+        const bar = document.getElementById("bar-pulse");
+        bar.style.width = Math.min(Math.abs(pulse) * 10, 100) + "%";
+        bar.style.backgroundColor = color;
+      }
+      function setSpeaking(isSpeaking) {
+        if (isSpeaking) avatar.classList.add("speaking");
+        else avatar.classList.remove("speaking");
+      }
+
+      // --- CHAT LOGIC ---
+      const chatBox = document.getElementById("chatBox");
+      const userInput = document.getElementById("userInput");
+
+      function addChat(text, sender) {
+        const div = document.createElement("div");
+        div.className = `msg ${sender}`;
+        let feedbackHtml = "";
+        if (sender === "deloris") {
+          // [FIX] Mã hóa thêm dấu nháy đơn để không bị lỗi onclick
+          const encodedText = encodeURIComponent(text).replace(/'/g, "%27");
+
+          feedbackHtml = `<div class="feedback-actions">
+    <button class="thumb-btn" onclick="sendFeedback(1, this, '${encodedText}')"><i class="fas fa-check"></i></button>
+    <button class="thumb-btn" onclick="sendFeedback(-1, this, '${encodedText}')"><i class="fas fa-times"></i></button>
+  </div>`;
+        }
+        div.innerHTML = `<div class="bubble">${marked.parse(
+          text
+        )}</div>${feedbackHtml}`;
+        chatBox.appendChild(div);
+        setTimeout(() => {
+          chatBox.scrollTop = chatBox.scrollHeight;
+        }, 100);
+        if (window.MathJax) MathJax.typesetPromise([div]).catch(() => {});
+      }
+
+      async function sendFeedback(rating, btn, encodedText) {
+        const parent = btn.parentElement;
+        parent
+          .querySelectorAll(".thumb-btn")
+          .forEach((b) => b.classList.remove("active-good", "active-bad"));
+        if (rating === 1) btn.classList.add("active-good");
+        else btn.classList.add("active-bad");
+        try {
+          await fetch("/api/feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input: lastUserMsg,
+              output: decodeURIComponent(encodedText),
+              rating,
+            }),
+          });
+        } catch {}
+      }
+
+      async function sendMessage(isBackground = false) {
+        const msg = userInput.value.trim();
+        if (!msg) return;
+
+        if (!isBackground) {
+          lastUserMsg = msg;
+          userInput.value = "";
+          addChat(msg, "user");
+        }
+
+        try {
+          const r = await fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: msg, is_background: isBackground }),
+          });
+          const d = await r.json();
+
+          if (d.error) {
+            if (!isBackground) addChat("Error: " + d.error, "deloris");
+          } else {
+            if (d.silent) {
+              console.log("Ignored background noise.");
+            } else {
+              if (isBackground) addChat(msg, "user"); // Hiện lại tin nhắn nếu AI trả lời
+
+              addChat(d.deloris_response, "deloris");
+              if (d.live_upt_metrics) {
+                updateHUD(d.live_upt_metrics);
+                updateAvatarState(d.live_upt_metrics.Pulse);
+              }
+
+              // [UPDATED] Gọi TTS với tham số Pulse
+              const currentPulse = d.live_upt_metrics
+                ? d.live_upt_metrics.Pulse
+                : 0;
+              const tts = await fetch("/api/speak", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  text: d.deloris_response,
+                  pulse: currentPulse,
+                }),
+              });
+              const t = await tts.json();
+              if (t.url) playAudio(t.url);
+            }
+          }
+        } catch (e) {
+          if (!isBackground) addChat("Error: " + e, "deloris");
+        }
+      }
+
+      userInput.onkeypress = (e) => {
+        if (e.key === "Enter") sendMessage();
+      };
+
+      function updateHUD(m) {
+        document.getElementById("val-ci").innerText = m.CI.toFixed(2);
+        document.getElementById("bar-ci").style.width = m.CI * 100 + "%";
+        document.getElementById("val-ent").innerText =
+          m.Entanglement.toFixed(2);
+        document.getElementById("bar-ent").style.width =
+          m.Entanglement * 100 + "%";
+      }
+
+      // --- BACKGROUND TASKS ---
+      const termBox = document.getElementById("terminalBox");
+      setInterval(async () => {
+        try {
+          const r = await fetch("/stream_logs");
+          const d = await r.json();
+          if (d.logs.length)
+            d.logs.forEach((l) => {
+              const e = document.createElement("div");
+              e.innerText = "> " + l;
+              termBox.appendChild(e);
+              termBox.scrollTop = termBox.scrollHeight;
+            });
+        } catch {}
+      }, 1000);
+
+      async function loadFiles() {
+        try {
+          const r = await fetch("/api/files");
+          const f = await r.json();
+          document.getElementById("file-count").innerText = f.length + " FILES";
+          document.getElementById("fileList").innerHTML = f
+            .map(
+              (i) =>
+                `<div class="file-card"><span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px" title="${
+                  i.name
+                }">${i.name}</span><div class="f-actions">${
+                  i.name.endsWith(".py")
+                    ? `<i class="fas fa-play" onclick="runScript('${i.name}')"></i>`
+                    : ""
+                }<i class="fas fa-trash" onclick="delFile('${
+                  i.name
+                }')"></i></div></div>`
+            )
+            .join("");
+        } catch {}
+      }
+      loadFiles();
+
+      function runScript(f) {
+        userInput.value = `chạy file ${f}`;
+        sendMessage();
+      }
+      async function delFile(n) {
+        if (confirm("CONFIRM PURGE?"))
+          await fetch(`/api/files/${n}`, { method: "DELETE" });
+        loadFiles();
+      }
+      async function handleUpload(f) {
+        if (!f) return;
+        const fd = new FormData();
+        fd.append("file", f);
+        addChat("Ingesting data...", "deloris");
+        await fetch("/upload", { method: "POST", body: fd });
+        addChat("Data ingestion complete.", "deloris");
+        loadFiles();
+      }
+      document.getElementById("f-img").onchange = (e) =>
+        handleUpload(e.target.files[0]);
+      document.getElementById("f-up").onchange = (e) =>
+        handleUpload(e.target.files[0]);
+
+      async function retrainModel() {
+        if (confirm("INITIATE NEURAL EVOLUTION?"))
+          await fetch("/retrain_model", { method: "POST" });
+      }
+      async function triggerSleep() {
+        if (confirm("BEGIN MEMORY CONSOLIDATION SEQUENCE?")) {
+          addChat("Entering sleep cycle...", "deloris");
+          await fetch("/api/sleep", { method: "POST" });
+        }
+      }
+      async function resetMemory() {
+        if (confirm("WARNING: EMERGENCY MEMORY PURGE. CONFIRM?"))
+          await fetch("/reset_memory", { method: "POST" });
+      }
+      function toggleMic() {
+        if (rec) rec.start();
+        else alert("No Mic support");
+      }
+
+      // --- NOTIFICATIONS LOOP ---
+      setInterval(async () => {
+        try {
+          const r = await fetch("/api/notifications");
+          const d = await r.json();
+          if (d.message && d.message.type === "chat") {
+            addChat(d.message.content, "deloris");
+
+            // [UPDATED] Lấy pulse hiện tại từ HUD
+            const currentPulseVal =
+              parseFloat(document.getElementById("val-pulse").innerText) || 0;
+
+            const tts = await fetch("/api/speak", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                text: d.message.content,
+                pulse: currentPulseVal,
+              }),
+            });
+            const t = await tts.json();
+            if (t.url) playAudio(t.url);
+          }
+        } catch {}
+      }, 3000);
+
+      document.addEventListener("visibilitychange", () =>
+        fetch("/api/user_presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: document.visibilityState === "hidden" ? "away" : "active",
+          }),
+        })
+      );
+      window.addEventListener("beforeunload", () =>
+        navigator.sendBeacon(
+          "/api/user_presence",
+          new Blob([JSON.stringify({ status: "closed" })], {
+            type: "application/json",
+          })
+        )
+      );
+    </script>
+  </body>
+</html>
