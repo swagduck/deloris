@@ -10,6 +10,7 @@ import numpy as np
 import os
 from sentence_transformers import SentenceTransformer
 from deloris_ai.architecture import DelorisModel
+from deloris_ai.database import DelorisDB
 import config
 
 # Cấu hình
@@ -21,19 +22,15 @@ LEARNING_RATE = 0.001
 def train():
     print(">>> [TRAIN] Đang khởi động Lò luyện Neural UPT...")
     
-    # 1. Load Dữ liệu
-    if not os.path.exists(DATA_PATH):
-        print(f"❌ Không tìm thấy dữ liệu: {DATA_PATH}")
-        return False, "Data not found"
-
-    with open(DATA_PATH, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    # 1. Load Dữ liệu từ Database
+    db = DelorisDB()
+    data = db.get_all_training_data()
     
     if not data:
-        print("❌ Dữ liệu trống.")
-        return False, "Empty data"
+        print("❌ Database trống rỗng (Chưa có giấc mơ nào).")
+        return False, "Empty DB"
 
-    print(f"   -> Đã tải {len(data)} mẫu ký ức.")
+    print(f"   -> Đã tải {len(data)} mẫu ký ức từ Database (Bao gồm cả Dreams).")
 
     # 2. Chuẩn bị Vectorizer (Language Core)
     print("   -> Đang tải Language Model (all-MiniLM-L6-v2)...")

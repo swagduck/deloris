@@ -43,7 +43,12 @@ def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, 
     if retrieved_docs:
         rag_context = "\n[KÝ ỨC DÀI HẠN (RAG)]:\n"
         for doc in retrieved_docs:
-            rag_context += f"- {doc.page_content.replace(chr(10), ' ')[:300]}...\n"
+            # Handle both string and object formats
+            if hasattr(doc, 'page_content'):
+                content = doc.page_content.replace(chr(10), ' ')[:300]
+            else:
+                content = str(doc).replace(chr(10), ' ')[:300]
+            rag_context += f"- {content}...\n"
             
     # [NEW] Dữ liệu Internet
     internet_context = ""
@@ -126,8 +131,43 @@ def _get_base_prompt(strategy_desc, user_message, chat_history, retrieved_docs, 
     4. QUAN TRỌNG: Hãy để trạng thái [NEURO-LINK] ảnh hưởng đến cách bạn trả lời.
     """
 
-def generate_final_response(strategy_class, user_message, chat_history, retrieved_docs, 
-                            entanglement_level, persona, global_state, CI_value=0.5, proactive_report=None, pulse_value=0.0, heartbeat_status=None):
+def summarize_conversation(history_list, upt_state):
+    """
+    Tóm tắt cuộc hội thoại để lưu vào bộ nhớ dài hạn.
+    """
+    try:
+        if not history_list:
+            return "Không có cuộc hội thoại nào để tóm tắt."
+        
+        # Lấy 10 tin nhắn gần nhất
+        recent_history = history_list[-10:] if len(history_list) > 10 else history_list
+        history_text = "\n".join(recent_history)
+        
+        pulse = upt_state.get('Pulse', 0)
+        ci = upt_state.get('CI', 0.5)
+        
+        prompt = f"""
+SYSTEM: Bạn là Deloris. Hãy tóm tắt cuộc hội thoại sau.
+
+LỊCH SỬ HỘI THOẠI:
+{history_text}
+
+TRẠNG THÁI HIỆN TẠI:
+- Pulse: {pulse:.2f}
+- CI: {ci:.2f}
+
+NHIỆM VỤ: Viết tóm tắt ngắn gọn (dưới 100 từ) về cuộc hội thoại này.
+Tập trung vào chủ đề chính và cảm xúc chính.
+"""
+        
+        summary = _generate_text(prompt)
+        return summary
+        
+    except Exception as e:
+        print(f"Lỗi khi tóm tắt hội thoại: {e}")
+        return f"Lỗi tóm tắt: {e}"
+
+def generate_final_response(strategy_class, user_message, retrieved_docs, chat_history, entanglement_level, persona, global_state, CI_value, proactive_report, pulse_value, heartbeat_status=None):
     
     strategy_desc = RESPONSE_STRATEGIES.get(strategy_class, "Mặc định")
     start_time = time.time()

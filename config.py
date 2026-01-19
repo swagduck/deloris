@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- 1. CẤU HÌNH GEMINI (Lõi Ngôn Ngữ) ---
-GEMINI_API_KEY = "AIzaSyBmg3hpyqbvej2hDARuf-SKeG1_BCcWJ-0"
+GEMINI_API_KEY = "AIzaSyAK5ibEGzpeplGsgQ1GxuZZvfvX1ztg-ng"
 GEMINI_MODEL_NAME = "gemini-flash-latest" 
 
 # --- 2. CẤU HÌNH MẠNG NƠ-RON (Deloris Brain) ---

@@ -9,6 +9,8 @@ from sentence_transformers import SentenceTransformer
 import warnings
 import json
 from upt_predictor.architecture import UPTAutomatorModel
+from upt_core.prediction_error import PredictionErrorSystem
+from deloris_ai.inner_monologue import InnerMonologueSystem
 import config
 
 warnings.filterwarnings("ignore")
@@ -35,6 +37,11 @@ try:
 except FileNotFoundError: exit(f"LỖI: Không tìm thấy {config.AUTOMATOR_MODEL_PATH}")
 upt_calc = UPTCalculator(dt=1.0)
 print("Lõi UPT: Sẵn sàng.")
+
+# Khởi tạo các hệ thống nhận thức nâng cao
+inner_monologue = InnerMonologueSystem()
+prediction_error = PredictionErrorSystem()
+print("Hệ thống Inner Monologue & Prediction Error: Sẵn sàng.")
 
 # ... (Toàn bộ PHẦN 2 Hàm hỗ trợ giữ nguyên) ...
 def denormalize_predictions(preds_tensor):
@@ -102,13 +109,30 @@ def run_deloris_chat():
 
         upt_metrics = upt_calc.update_metrics(A_t, E_t, C_t)
         
+        # Bước 1: Inner Monologue - Sinh suy nghĩ thầm kín
+        inner_thought = inner_monologue.generate_inner_thought(
+            text_input, upt_metrics, chat_history, ""
+        )
+        print(f"[Inner Monologue] Suy nghĩ: '{inner_thought}'")
+        
+        # Bước 2: Prediction Error - Dự đoán phản hồi của User
+        predicted_sentiment, confidence = prediction_error.predict_user_response(
+            text_input, upt_metrics, chat_history
+        )
+        print(f"[Prediction] Dự đoán User sẽ: {predicted_sentiment} (confidence: {confidence:.2f})")
+        
         predicted_class = 0
         with torch.no_grad():
             prediction = deloris(input_vector, upt_metrics)
             predicted_class = torch.argmax(prediction, dim=1).item()
-            
+        
+        # Bước 3: Inner Monologue - Tạo phản hồi dựa trên suy nghĩ thầm kín
+        response_from_thought = inner_monologue.generate_response_from_thought(
+            inner_thought, text_input, upt_metrics, chat_history
+        )
+        
         # --- [CẬP NHẬT LỚN TẠI ĐÂY] ---
-        # Gửi cả BỘ NHỚ DÀI HẠN và BỐI CẢNH NGẮN HẠN vào
+        # Gửi cả BỘ NHỚ DÀI HẠN, BỐI CẢNH NGẮN HẠN và suy nghĩ nội tâm vào
         final_output_message, clean_response_text = generate_final_response(
             predicted_class, 
             text_input, 
@@ -116,7 +140,7 @@ def run_deloris_chat():
             chat_history,  # <-- GỬI BỐI CẢNH NGẮN HẠN
             0.5,  # entanglement_level
             "neutral",  # persona
-            "",  # global_state
+            response_from_thought,  # <-- GỬI SUY NGHĨ NỘI TÂM
             upt_metrics.get('CI', 0.5),  # CI_value
             None,  # proactive_report
             upt_metrics.get('Pulse', 0.0),  # pulse_value
@@ -135,10 +159,44 @@ def run_deloris_chat():
         # ... (Vòng lặp Phản hồi (1) (2) giữ nguyên) ...
         while True:
             feedback = input("Phản hồi này Tốt (1) hay Cần sửa (2)? (gõ 1 hoặc 2): ")
-            if feedback == '1': print("Tuyệt vời! Đã ghi nhận."); break
+            if feedback == '1': 
+                # Tính surprise và cập nhật learning rate
+                surprise = prediction_error.calculate_surprise(predicted_sentiment, "positive")
+                learning_multiplier = prediction_error.get_learning_rate_multiplier()
+                pulse_adjustment = prediction_error.should_adjust_pulse(surprise)
+                
+                print(f"Tuyệt vời! Đã ghi nhận.")
+                print(f"[Prediction Error] Surprise: {surprise:.2f}, Learning Rate: x{learning_multiplier:.2f}")
+                if pulse_adjustment != 0:
+                    print(f"[Prediction Error] Pulse điều chỉnh: {pulse_adjustment:+.2f}")
+                    # Cập nhật Pulse nếu cần
+                    if upt_calc:
+                        current_pulse = upt_metrics.get('Pulse', 0)
+                        new_pulse = max(-5, min(10, current_pulse + pulse_adjustment))
+                        upt_calc.last_Pulse = new_pulse
+                        upt_metrics['Pulse'] = new_pulse
+                break
+                
             elif feedback == '2':
+                # Tính surprise và cập nhật learning rate
+                surprise = prediction_error.calculate_surprise(predicted_sentiment, "negative")
+                learning_multiplier = prediction_error.get_learning_rate_multiplier()
+                pulse_adjustment = prediction_error.should_adjust_pulse(surprise)
+                
                 strategy_label = f"Lớp {predicted_class}"
-                save_feedback(text_input, A_t, E_t, C_t, strategy_label); break
+                save_feedback(text_input, A_t, E_t, C_t, strategy_label)
+                
+                print(f"[Prediction Error] Surprise: {surprise:.2f}, Learning Rate: x{learning_multiplier:.2f}")
+                if pulse_adjustment != 0:
+                    print(f"[Prediction Error] Pulse điều chỉnh: {pulse_adjustment:+.2f}")
+                    # Cập nhật Pulse nếu cần
+                    if upt_calc:
+                        current_pulse = upt_metrics.get('Pulse', 0)
+                        new_pulse = max(-5, min(10, current_pulse + pulse_adjustment))
+                        upt_calc.last_Pulse = new_pulse
+                        upt_metrics['Pulse'] = new_pulse
+                break
+                
             else: print("Vui lòng chỉ gõ 1 hoặc 2.")
 
 if __name__ == "__main__":

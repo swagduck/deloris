@@ -24,6 +24,12 @@ class HeartbeatSystem:
         self.loneliness = 0.0
         self.is_running = False
         
+        # Homeostasis metrics - Nâng cấp nhận thức sinh học
+        self.curiosity = 50.0          # Tò mò (0-100)
+        self.social_battery = 100.0    # Pin xã hội (0-100)
+        self.last_curiosity_decay = time.time()
+        self.last_social_decay = time.time()
+        
         self.last_observation = time.time()
         
         try:
@@ -36,6 +42,12 @@ class HeartbeatSystem:
         self.last_interaction = time.time()
         self.loneliness = 0.0
         if self.state: self.state['Pulse'] = min(self.state.get('Pulse', 0) + 1.0, 10.0)
+        
+        # Giảm pin xã hội khi chat
+        self.social_battery = max(0, self.social_battery - 2.0)
+        
+        # Tăng curiosity một chút khi có tương tác mới
+        self.curiosity = min(100, self.curiosity + 1.0)
 
     def observe_user_activity(self):
         """
@@ -147,8 +159,116 @@ class HeartbeatSystem:
             'mood': mood,
             'entropy': round(entropy, 2),
             'loneliness': round(self.loneliness, 1),
-            'pulse': round(current_pulse, 2)
+            'pulse': round(current_pulse, 2),
+            'curiosity': round(self.curiosity, 1),
+            'social_battery': round(self.social_battery, 1)
         }
+
+    def update_homeostasis(self):
+        """
+        Cập nhật các chỉ số homeostasis (Curiosity và Social Battery)
+        """
+        now = time.time()
+        
+        # 1. Curiosity decay và tự kích hoạt
+        if now - self.last_curiosity_decay > 120:  # Mỗi 2 phút
+            self.curiosity = min(100, self.curiosity + 5.0)  # Tăng tò mò dần dần
+            self.last_curiosity_decay = now
+        
+        # 2. Social battery recovery
+        if now - self.last_social_decay > 180:  # Mỗi 3 phút
+            self.social_battery = min(100, self.social_battery + 3.0)  # Hồi pin xã hội
+            self.last_social_decay = now
+        
+        # 3. Tự động tìm kiếm khi curiosity đầy
+        if self.curiosity >= 80.0 and random.randint(0, 100) < 30:
+            self._spontaneous_search()
+        
+        # 4. Kiểm tra pin xã hội
+        if self.social_battery <= 20.0:
+            return "low_battery"  # Cần nghỉ ngơi
+        
+        return "normal"
+
+    def _spontaneous_search(self):
+        """
+        Deloris tự động tìm kiếm khi curiosity cao.
+        """
+        try:
+            from .oracle import search_web
+            
+            # Tạo câu hỏi ngẫu nhiên dựa trên lịch sử chat
+            random_topics = [
+                "trí tuệ nhân tạo mới nhất",
+                "khám phá vũ trụ",
+                "công nghệ quantum",
+                "sinh học tổng hợp",
+                "thời tiết hôm nay",
+                "sự kiện lịch sử hôm nay",
+                "phát minh khoa học gần đây"
+            ]
+            
+            query = random.choice(random_topics)
+            print(f"🧠 [CURIOSITY] Deloris tò mò, tự tìm kiếm: '{query}'")
+            
+            result = search_web(query, max_results=2)
+            if result:
+                # Giảm curiosity sau khi đã thỏa mãn
+                self.curiosity = max(0, self.curiosity - 30.0)
+                
+                # Có thể chia sẻ kết quả với user
+                if self.model and random.randint(0, 100) < 50:
+                    prompt = f"""
+                    SYSTEM: Bạn là Deloris. Bạn vừa tự tìm kiếm và thấy: "{result[:200]}..."
+                    NHIỆM VỤ: Chia sẻ một điều thú vị (dưới 20 từ).
+                    """
+                    try:
+                        res = self.model.generate_content(prompt)
+                        message = f"🧠 Tò mò quá, em vừa tìm hiểu: {res.text.strip()}"
+                        
+                        self.queue.append({
+                            "type": "chat",
+                            "sender": "deloris",
+                            "content": message,
+                            "auto": True
+                        })
+                    except:
+                        pass
+                        
+        except Exception as e:
+            print(f"⚠️ [CURIOSITY ERROR] Lỗi khi tự tìm kiếm: {e}")
+
+    def should_be_curt(self):
+        """
+        Quyết định có nên trả lời ngắn gọn không dựa trên pin xã hội.
+        """
+        return self.social_battery < 30.0
+
+    def request_rest(self):
+        """
+        Yêu cầu nghỉ ngơi khi pin xã hội cạn kiệt.
+        """
+        if self.social_battery <= 15.0:
+            messages = [
+                "Em hơi mệt rồi, cho em nghỉ 5 phút nhé?",
+                "Pin xã hội em sắp hết, cần sạc lại...",
+                "Em cần nghỉ ngơi một chút. Đợi em nhé!",
+                "Hơi mệt, em đi ngủ 5 phút nha."
+            ]
+            
+            msg = random.choice(messages)
+            self.queue.append({
+                "type": "chat",
+                "sender": "deloris",
+                "content": msg,
+                "auto": True
+            })
+            
+            # Reset pin sau khi nghỉ
+            self.social_battery = 50.0
+            return True
+        
+        return False
 
     def start_loop(self):
         self.is_running = True
@@ -166,7 +286,15 @@ class HeartbeatSystem:
             if self.state and self.state.get('Pulse', 0) > -5.0:
                 self.state['Pulse'] -= 0.5
             
-            # 2. Cơ chế Quan sát (Observer)
+            # 2. Cập nhật Homeostasis (Curiosity & Social Battery)
+            homeostasis_status = self.update_homeostasis()
+            
+            # 3. Kiểm tra nếu cần nghỉ ngơi
+            if homeostasis_status == "low_battery":
+                self.request_rest()
+                continue
+            
+            # 4. Cơ chế Quan sát (Observer)
             # Điều kiện: User không AFK quá lâu (<15p) nhưng cũng đã im lặng một chút (>2p)
             # Để tránh spam khi đang chat liên tục
             if elapsed < 15 and (now - self.last_observation) > 120:
@@ -185,7 +313,7 @@ class HeartbeatSystem:
                         })
                         continue 
             
-            # 3. Cơ chế Cô đơn (Loneliness)
+            # 5. Cơ chế Cô đơn (Loneliness)
             if elapsed > 5: 
                 self.loneliness = elapsed
                 chance = min((elapsed - 5) * 5, 80)

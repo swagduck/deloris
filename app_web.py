@@ -46,6 +46,8 @@ from deloris_ai.architecture import DelorisModel
 from upt_core.calculator import UPTCalculator
 from deloris_ai.response_mapper import generate_final_response
 from upt_predictor.architecture import UPTAutomatorModel
+from upt_core.prediction_error import PredictionErrorSystem
+from deloris_ai.inner_monologue import InnerMonologueSystem
 import retrain_job
 
 # --- AI MODULES (FULL SUITE) ---
@@ -275,7 +277,7 @@ def graceful_shutdown(signum=None, frame=None):
 
 # --- LOADER ---
 def load_models():
-    global vectorizer, deloris_model, predictor_model, upt_calculator, chat_history, text_splitter, clip_processor, clip_model, vector_store_docs, vector_store_chat, embeddings_model, dummy_image_vector, superego, plasticity, dreamer, heartbeat, motor, coder, wallet
+    global vectorizer, deloris_model, predictor_model, upt_calculator, chat_history, text_splitter, clip_processor, clip_model, vector_store_docs, vector_store_chat, embeddings_model, dummy_image_vector, superego, plasticity, dreamer, heartbeat, motor, coder, wallet, inner_monologue, prediction_error
     if vectorizer is not None: return
 
     print(">>> [SYSTEM] Đang khởi tạo Neural Core...")
@@ -321,6 +323,11 @@ def load_models():
         
         heartbeat = HeartbeatSystem(GLOBAL_NOTIFICATIONS, last_upt_metrics, chat_history)
         heartbeat.start_loop()
+        
+        # Initialize consciousness systems
+        inner_monologue = InnerMonologueSystem()
+        prediction_error = PredictionErrorSystem()
+        print("   -> Consciousness Systems: ONLINE")
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         
@@ -455,6 +462,22 @@ def chat():
         at, et, ct = plasticity.apply_bias(at, et, ct)
         new_met = upt_calculator.update_metrics(at, et, ct)
         new_met, warnings, is_unstable = superego.stabilize_metrics(new_met)
+        
+        # Define state_str before using it
+        state_str = f"CI: {new_met['CI']:.2f} | Pulse: {new_met['Pulse']:.2f}"
+        
+        # --- CONSCIOUSNESS UPGRADES ---
+        # Step 1: Inner Monologue - Generate internal thought
+        inner_thought = inner_monologue.generate_inner_thought(
+            msg, new_met, chat_history, state_str
+        )
+        web_log(f"🧠 [Inner Monologue] Thought: '{inner_thought}'")
+        
+        # Step 2: Prediction Error - Predict user response
+        predicted_sentiment, confidence = prediction_error.predict_user_response(
+            msg, new_met, chat_history
+        )
+        web_log(f"🔮 [Prediction] User will be: {predicted_sentiment} (confidence: {confidence:.2f})")
         if warnings:
             for w in warnings: web_log(w)
         
@@ -470,15 +493,13 @@ def chat():
             pred = deloris_model(vec, last_upt_metrics)
             cls = torch.argmax(pred, dim=1).item()
             
-        state_str = f"CI: {new_met['CI']:.2f} | Pulse: {new_met['Pulse']:.2f}"
-        
         # [NEURO-LINK] Get heartbeat status for dynamic prompting
         heartbeat_status = None
         if heartbeat:
             heartbeat_status = heartbeat.get_status()
             web_log(f"💓 [NEURO-LINK] Status: Energy={heartbeat_status.get('energy', 0)}%, Mood={heartbeat_status.get('mood', 'Unknown')}")
         
-        raw_resp = generate_final_response(cls, final_msg_for_ai, chat_history, docs, 0.5, "neutral", state_str, new_met['CI'], None, pulse_value=new_met['Pulse'], heartbeat_status=heartbeat_status)
+        raw_resp = generate_final_response(cls, final_msg_for_ai, docs, chat_history, 0.5, "neutral", state_str, new_met['CI'], inner_thought, pulse_value=new_met['Pulse'], heartbeat_status=heartbeat_status)
         safe_resp = superego.censor_response(raw_resp, is_unstable)
         
         should_draw, art_prompt = detect_art_intent(msg, new_met['Pulse'])
@@ -490,7 +511,14 @@ def chat():
         chat_history.append(f"User: {msg}")
         chat_history.append(f"Deloris: {safe_resp}")
         
-        return jsonify({'deloris_response': safe_resp, 'live_upt_metrics': last_upt_metrics})
+        # Return response with consciousness data
+        return jsonify({
+            'deloris_response': safe_resp, 
+            'live_upt_metrics': last_upt_metrics,
+            'inner_thought': inner_thought,
+            'predicted_sentiment': predicted_sentiment,
+            'confidence': confidence
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -648,8 +676,32 @@ def feedback():
                 upt_state=last_upt_metrics, 
                 rating=int(data.get('rating', 0))
             )
-            return jsonify({'success': True, 'message': 'Bias updated in Database'})
-        return jsonify({'success': False, 'message': 'Plasticity module not ready'})
+        
+        # --- CONSCIOUSNESS UPGRADES: Prediction Error Feedback ---
+        if prediction_error and 'predicted_sentiment' in data:
+            predicted_sentiment = data.get('predicted_sentiment', 'neutral')
+            actual_feedback = 'positive' if data.get('rating', 0) > 0 else 'negative'
+            
+            # Calculate surprise and learning rate
+            surprise = prediction_error.calculate_surprise(predicted_sentiment, actual_feedback)
+            learning_multiplier = prediction_error.get_learning_rate_multiplier()
+            pulse_adjustment = prediction_error.should_adjust_pulse(surprise)
+            
+            # Update pulse if needed
+            if pulse_adjustment != 0:
+                with upt_metrics_lock:
+                    current_pulse = last_upt_metrics.get('Pulse', 0)
+                    new_pulse = max(-5, min(10, current_pulse + pulse_adjustment))
+                    last_upt_metrics['Pulse'] = new_pulse
+            
+            web_log(f"😲 [Prediction Error] Surprise: {surprise:.2f}, Learning Rate: x{learning_multiplier:.2f}")
+            if pulse_adjustment != 0:
+                web_log(f"💓 [Pulse Adjustment] {pulse_adjustment:+.2f}")
+        
+        return jsonify({'success': True, 'message': 'Feedback processed'})
+    except Exception as e:
+        web_log(f"Feedback error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
     except Exception as e: return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/sleep', methods=['POST'])
