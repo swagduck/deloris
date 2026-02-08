@@ -299,7 +299,7 @@ def graceful_shutdown(signum=None, frame=None):
 
 # --- LOADER ---
 def load_models():
-    global vectorizer, deloris_model, predictor_model, upt_calculator, chat_history, text_splitter, clip_processor, clip_model, vector_store_docs, vector_store_chat, embeddings_model, dummy_image_vector, superego, plasticity, dreamer, heartbeat, motor, coder, wallet, inner_monologue, prediction_error
+    global vectorizer, deloris_model, predictor_model, upt_calculator, chat_history, text_splitter, clip_processor, clip_model, vector_store_docs, vector_store_chat, embeddings_model, dummy_image_vector, superego, plasticity, dreamer, heartbeat, motor, coder, wallet, inner_monologue, prediction_error, vector_memory, rlhf_collector
     if vectorizer is not None: return
 
     print(">>> [SYSTEM] Đang khởi tạo Neural Core...")
@@ -526,9 +526,15 @@ def chat():
             last_upt_values = (at, et, ct)
             last_upt_metrics.update(new_met)
 
-        docs = []
-        with vector_store_lock:
-            if vector_store_docs: docs += vector_store_docs.similarity_search(msg, k=3)
+        # --- [NÂNG CẤP] Thay thế bằng Vector Memory System ---
+        # Lấy ký ức dài hạn liên quan từ Pinecone/Chroma/FAISS
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            docs = loop.run_until_complete(vector_memory.search_similar(msg, k=3))
+        except RuntimeError:
+            # Fallback for sync context
+            docs = asyncio.run(vector_memory.search_similar(msg, k=3))
 
         with torch.no_grad():
             pred = deloris_model(vec, last_upt_metrics)
@@ -551,6 +557,36 @@ def chat():
         
         chat_history.append(f"User: {msg}")
         chat_history.append(f"Deloris: {safe_resp}")
+        
+        # --- [NÂNG CẤP] Thu thập dữ liệu RLHF ---
+        rlhf_collector.collect_interaction(
+            input_text=msg,
+            inner_thought=inner_thought,
+            response=safe_resp,
+            predicted_class=cls,
+            upt_metrics=new_met
+        )
+        
+        # --- [NÂNG CẤP] Lưu tương tác vào Vector Memory ---
+        try:
+            # Save conversation to vector memory
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                vector_memory.add_memory(
+                    f"User: {msg}\nDeloris: {safe_resp}",
+                    metadata={
+                        'type': 'conversation',
+                        'user_message': msg,
+                        'deloris_response': safe_resp,
+                        'inner_thought': inner_thought,
+                        'predicted_class': cls,
+                        'upt_metrics': new_met,
+                        'predicted_sentiment': predicted_sentiment
+                    }
+                )
+            )
+        except Exception as e:
+            web_log(f"Vector Memory Save Error: {e}")
         
         # Return response with consciousness data
         return jsonify({
