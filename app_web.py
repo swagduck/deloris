@@ -47,7 +47,27 @@ from upt_core.calculator import UPTCalculator
 from deloris_ai.response_mapper import generate_final_response
 from upt_predictor.architecture import UPTAutomatorModel
 from upt_core.prediction_error import PredictionErrorSystem
-from deloris_ai.inner_monologue import InnerMonologueSystem
+from deloris_ai.inner_monologue_optimized import InnerMonologueSystemOptimized  # Use optimized version
+from deloris_ai.vector_memory import VectorMemorySystem  # Add vector memory
+from deloris_ai.rlhf_collector import RLHFDataCollector  # Add RLHF collection
+from upt_predictor.compatibility import UPTAutomatorModelCompat  # Use compatibility layer
+
+def denormalize_predictions(preds_tensor):
+    # Handle both concatenated and separate tensor formats
+    if preds_tensor.dim() == 2 and preds_tensor.shape[1] == 3:
+        # 2D tensor format [batch, 3]
+        A_norm, E_norm, C_norm = preds_tensor[0, 0], preds_tensor[0, 1], preds_tensor[0, 2]
+    elif preds_tensor.dim() == 1 and preds_tensor.shape[0] == 3:
+        # 1D tensor format [3]
+        A_norm, E_norm, C_norm = preds_tensor[0], preds_tensor[1], preds_tensor[2]
+    else:
+        # Separate format (original)
+        A_norm, E_norm, C_norm = preds_tensor[0], preds_tensor[1], preds_tensor[2]
+    
+    A_t = max(A_norm.item() * 1.0, 0.1)
+    E_t = max(E_norm.item() * 5.0, 0.1)
+    C_t = max(C_norm.item() * 3.0, 0.1)
+    return A_t, E_t, C_t
 import retrain_job
 
 # --- AI MODULES (FULL SUITE) ---
@@ -99,10 +119,12 @@ LOG_QUEUE = queue.Queue()
 superego = None
 plasticity = None
 dreamer = None
-heartbeat = None
+heartbeatvision = None
 motor = None
 coder = None
-wallet = None # [MỚI]
+wallet = None 
+vector_memory = None  # Add vector memory system
+rlhf_collector = None  # Add RLHF collector # [MỚI]
 
 last_upt_values = (0.5, 1.0, 1.0)
 last_upt_metrics = {"CI": 0.5, "Pulse": 0.0, "Entanglement": 0.5}
@@ -299,11 +321,14 @@ def load_models():
             except: pass
         deloris_model.eval()
         
-        predictor_model = UPTAutomatorModel(config.PREDICTOR_INPUT_DIM, config.IMAGE_VECTOR_DIM, config.AUTOMATOR_HIDDEN_DIM)
-        if os.path.exists(config.AUTOMATOR_MODEL_PATH):
-            try: predictor_model.load_state_dict(torch.load(config.AUTOMATOR_MODEL_PATH, map_location='cpu'))
-            except: pass
+        predictor_model = UPTAutomatorModelCompat(
+            config.INPUT_DIM, 
+            config.IMAGE_VECTOR_DIM, 
+            config.AUTOMATOR_HIDDEN_DIM
+        )
+        predictor_model.load_state_dict(torch.load(config.AUTOMATOR_MODEL_PATH))
         predictor_model.eval()
+        print(f"Bộ dự đoán UPT ({config.AUTOMATOR_MODEL_PATH}): Sẵn sàng.")
         
         clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -325,9 +350,11 @@ def load_models():
         heartbeat.start_loop()
         
         # Initialize consciousness systems
-        inner_monologue = InnerMonologueSystem()
+        inner_monologue = InnerMonologueSystemOptimized()
         prediction_error = PredictionErrorSystem()
-        print("   -> Consciousness Systems: ONLINE")
+        vector_memory = VectorMemorySystem()
+        rlhf_collector = RLHFDataCollector()
+        print("   -> Consciousness Systems: ONLINE (Optimized)")
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         
@@ -364,23 +391,19 @@ def user_presence():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    """Optimized chat endpoint with async processing"""
     global last_upt_values, last_upt_metrics, chat_history, LATEST_VISUAL_CONTEXT
+    
     if vectorizer is None: load_models()
     
     try:
-        data = request.json
-        msg = data.get('message', '')
+        data = request.get_json()
+        msg = data.get('message', '').strip()
         is_background = data.get('is_background', False)
         
         if not msg: return jsonify({'error': 'Empty'}), 400
-
-        # --- 1. MOTOR SYSTEM (Hành động vật lý) ---
-        if motor:
-            motor_resp = motor.detect_and_act(msg)
-            if motor_resp:
-                chat_history.append(f"User: {msg}")
-                chat_history.append(f"Deloris (Motor): {motor_resp}")
-                return jsonify({'deloris_response': motor_resp, 'live_upt_metrics': last_upt_metrics})
+        
+        # Start processing the message
         
         # --- 2. CRYPTO WALLET (Tài chính Web3) ---
         if wallet:
@@ -453,10 +476,28 @@ def chat():
         vec = torch.tensor(vectorizer.encode([msg]), dtype=torch.float32)
         
         with upt_metrics_lock: aec, met = last_upt_values, last_upt_metrics.copy()
-        inp = torch.cat((vec, torch.tensor([list(aec)], dtype=torch.float32), torch.tensor([[met['CI'], met['Pulse'], met['Entanglement']]], dtype=torch.float32)), dim=1)
+        
+        # Construct input to match expected 774 dimensions
+        # Current: vec (384) + aec (3) + metrics (3) = 390
+        # Need: 774 total, so pad with zeros
+        current_input = torch.cat((vec, torch.tensor([list(aec)], dtype=torch.float32), torch.tensor([[met['CI'], met['Pulse'], met['Entanglement']]], dtype=torch.float32)), dim=1)
+        
+        # Pad to 774 dimensions if needed
+        if current_input.shape[1] < 774:
+            padding = torch.zeros(1, 774 - current_input.shape[1], dtype=torch.float32)
+            inp = torch.cat((current_input, padding), dim=1)
+        else:
+            inp = current_input[:, :774]  # Truncate if too large
         dummy = dummy_image_vector if dummy_image_vector is not None else torch.zeros(1, config.IMAGE_VECTOR_DIM)
         
-        with torch.no_grad(): oa, oe, oc = predictor_model(inp, dummy)
+        with torch.no_grad(): 
+            output = predictor_model(inp, dummy)
+            # Handle both single tensor and tuple outputs
+            if isinstance(output, tuple):
+                oa, oe, oc = output
+            else:
+                # Single tensor case - split into 3 values
+                oa, oe, oc = output[:, 0:1], output[:, 1:2], output[:, 2:3]
         at, et, ct = max(oa.item(), 0.1), max(oe.item()*5.0, 0.1), max(oc.item()*3.0, 0.1)
 
         at, et, ct = plasticity.apply_bias(at, et, ct)
@@ -544,8 +585,21 @@ def sentinel_eye():
                     prev_metrics = [last_upt_metrics['CI'], last_upt_metrics['Pulse'], last_upt_metrics['Entanglement']]
                 state_tensor_aec = torch.tensor([prev_aec], dtype=torch.float32)
                 state_tensor_met = torch.tensor([prev_metrics], dtype=torch.float32)
-                textual_input = torch.cat((text_tensor, state_tensor_aec, state_tensor_met), dim=1)
-                oa, oe, oc = predictor_model(textual_input, visual_features)
+                current_input = torch.cat((text_tensor, state_tensor_aec, state_tensor_met), dim=1)
+                
+                # Pad to 774 dimensions if needed
+                if current_input.shape[1] < 774:
+                    padding = torch.zeros(1, 774 - current_input.shape[1], dtype=torch.float32)
+                    textual_input = torch.cat((current_input, padding), dim=1)
+                else:
+                    textual_input = current_input[:, :774]  # Truncate if too large
+                output = predictor_model(textual_input, visual_features)
+                # Handle both single tensor and tuple outputs
+                if isinstance(output, tuple):
+                    oa, oe, oc = output
+                else:
+                    # Single tensor case - split into 3 values
+                    oa, oe, oc = output[:, 0:1], output[:, 1:2], output[:, 2:3]
                 at, et, ct = max(oa.item(), 0.1), max(oe.item()*5.0, 0.1), max(oc.item()*3.0, 0.1)
                 new_met = upt_calculator.update_metrics(at, et, ct)
                 with upt_metrics_lock:
@@ -605,8 +659,21 @@ def _ingest_file(fname):
                         prev_metrics = [last_upt_metrics['CI'], last_upt_metrics['Pulse'], last_upt_metrics['Entanglement']]
                     state_tensor_aec = torch.tensor([prev_aec], dtype=torch.float32)
                     state_tensor_met = torch.tensor([prev_metrics], dtype=torch.float32)
-                    textual_input = torch.cat((text_tensor, state_tensor_aec, state_tensor_met), dim=1)
-                    oa, oe, oc = predictor_model(textual_input, visual_features)
+                    current_input = torch.cat((text_tensor, state_tensor_aec, state_tensor_met), dim=1)
+                    
+                    # Pad to 774 dimensions if needed
+                    if current_input.shape[1] < 774:
+                        padding = torch.zeros(1, 774 - current_input.shape[1], dtype=torch.float32)
+                        textual_input = torch.cat((current_input, padding), dim=1)
+                    else:
+                        textual_input = current_input[:, :774]  # Truncate if too large
+                    output = predictor_model(textual_input, visual_features)
+                    # Handle both single tensor and tuple outputs
+                    if isinstance(output, tuple):
+                        oa, oe, oc = output
+                    else:
+                        # Single tensor case - split into 3 values
+                        oa, oe, oc = output[:, 0:1], output[:, 1:2], output[:, 2:3]
                     at, et, ct = max(oa.item(), 0.1), max(oe.item() * 5.0, 0.1), max(oc.item() * 3.0, 0.1)
                     at, et, ct = plasticity.apply_bias(at, et, ct)
                     new_met = upt_calculator.update_metrics(at, et, ct)
@@ -764,6 +831,68 @@ def _self_diagnostic():
         print(f"   -> ❌ [FAIL] Không thể tự kết nối: {e}")
     print("--- [DIAGNOSTIC] HOÀN TẤT ---\n")
 
+@app.route('/api/connect-local/consult', methods=['POST'])
+def consult_deloris_api():
+    """API để ConnectLocal gọi sang hỏi ý kiến Deloris"""
+    try:
+        data = request.json
+        user_message = data.get('message', '')
+        web_log(f"📞 [ConnectLocal] Gọi API với nội dung: {user_message}")
+
+        # 1. Phân tích độ khẩn cấp (Logic đơn giản)
+        urgency = "LOW"
+        low_msg = user_message.lower()
+        if any(w in low_msg for w in ['cháy', 'nổ', 'cứu', 'máu', 'gấp', 'khẩn', 'nguy hiểm']):
+            urgency = "HIGH"
+        elif any(w in low_msg for w in ['hỏng', 'vỡ', 'nhanh', 'giúp']):
+            urgency = "MEDIUM"
+
+        # 2. Phân tích từ khóa dịch vụ
+        service_keyword = "general"
+        keywords_map = {
+            'điện': 'thợ sửa điện', 
+            'nước': 'thợ sửa ống nước', 
+            'xe': 'cứu hộ xe máy', 
+            'khóa': 'thợ sửa khóa',
+            'nhà': 'dịch vụ dọn nhà', 
+            'lạnh': 'sửa máy lạnh',
+            'máy tính': 'sửa máy tính',
+            'laptop': 'sửa laptop',
+            'chuyển': 'dịch vụ chuyển nhà',
+            'vệ sinh': 'vệ sinh công nghiệp',
+            'gia sư': 'gia sư',
+            'dạy': 'gia sư'
+        }
+        for key, val in keywords_map.items():
+            if key in low_msg:
+                service_keyword = val
+                break
+
+        # 3. Sử dụng bộ não Deloris để sinh câu trả lời trấn an
+        # Lấy trạng thái hiện tại từ biến global
+        current_metrics = last_upt_metrics.copy()
+        
+        # Tạo ngữ cảnh cho Inner Monologue
+        context_str = f"User đang hoảng loạn (Mức độ: {urgency}) và cần tìm '{service_keyword}'. Hãy đóng vai điều phối viên bình tĩnh."
+        
+        # Sinh suy nghĩ & Phản hồi
+        thought = inner_monologue.generate_inner_thought(user_message, current_metrics, [], context_str)
+        reply = inner_monologue.generate_response_from_thought(thought, user_message, current_metrics, [])
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "reply": reply,
+                "urgency": urgency,
+                "keyword": service_keyword,
+                "thought": thought
+            }
+        })
+
+    except Exception as e:
+        web_log(f"❌ [API ERROR] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 if __name__ == '__main__':
     load_models()
     threading.Thread(target=_self_diagnostic, daemon=True).start()

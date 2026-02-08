@@ -7,7 +7,7 @@ class SuperegoMonitor:
     Nhiệm vụ: Kìm hãm trạng thái 'Pulse' nếu nó vượt ngưỡng nguy hiểm 
     và ngăn chặn các phản hồi độc hại khi hệ thống mất ổn định.
     """
-    def __init__(self, panic_threshold=8.0, depression_threshold=-8.0):
+    def __init__(self, panic_threshold=15.0, depression_threshold=-15.0):
         self.panic_threshold = panic_threshold
         self.depression_threshold = depression_threshold
 

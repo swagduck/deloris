@@ -16,17 +16,20 @@ from app_web import app, load_models, _self_diagnostic, graceful_shutdown
 
 def open_browser():
     """Chờ server khởi động rồi mở trình duyệt"""
-    print(f"--- Đang chờ server tại port {config.FLASK_PORT}... ---")
-    time.sleep(5) 
+    import webbrowser
     url = f"http://127.0.0.1:{config.FLASK_PORT}"
     print(f"--- [SYSTEM ONLINE] Mở Neural Link: {url} ---")
     webbrowser.open(url)
 
-# Hàm xử lý tín hiệu ngắt từ start.py
 def signal_handler(sig, frame):
     print("\n🛑 [LAUNCHER] Nhận tín hiệu ngắt. Chuyển tiếp cho Core...")
     # Gọi hàm tắt an toàn của app_web
     graceful_shutdown(sig, frame)
+
+def _self_diagnostic():
+    """Chạy app với chế độ tương thích"""
+    # Use the main web app
+    return app
 
 if __name__ == "__main__":
     # Đăng ký bộ lắng nghe

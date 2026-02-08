@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- 1. CẤU HÌNH GEMINI (Lõi Ngôn Ngữ) ---
-GEMINI_API_KEY = "AIzaSyAK5ibEGzpeplGsgQ1GxuZZvfvX1ztg-ng"
+GEMINI_API_KEY = "AIzaSyBnstUMu6aWD5rq5KRYfNgdexubV-C5eQI"
 GEMINI_MODEL_NAME = "gemini-flash-latest" 
 
 # --- 2. CẤU HÌNH MẠNG NƠ-RON (Deloris Brain) ---
@@ -47,7 +47,7 @@ FAISS_INDEX_CHAT_PATH = "data/vector_memory_chat.faiss"
 
 # --- 6. CẤU HÌNH WEB SERVER ---
 FLASK_HOST = "0.0.0.0" 
-FLASK_PORT = 5001 
+FLASK_PORT = 5000 
 
 # --- 7. CẤU HÌNH UPT CORE (OVERCLOCKED) ---
 # Đã tinh chỉnh để Deloris nhạy cảm hơn

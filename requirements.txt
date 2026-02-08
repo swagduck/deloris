@@ -12,3 +12,11 @@ faiss-cpu
 imageio[ffmpeg]
 transformers
 Pillow
+accelerate
+datasets
+peft
+bitsandbytes
+trl
+wandb
+asyncio
+aiofiles
