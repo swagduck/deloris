@@ -108,14 +108,15 @@ clip_processor = None
 clip_model = None
 dummy_image_vector = None
 
-# [BIẾN TRẠNG THÁI]
+# [BIẾN TRẠNG THÁI - Sử dụng weak references để tránh memory leaks]
+import weakref
 LATEST_VISUAL_CONTEXT = "" 
 BACKGROUND_TASK_STATUS = {"status": "idle", "task": "Không có"}
 GLOBAL_NOTIFICATIONS = deque(maxlen=5)
 SYSTEM_ACTIVE = True
 LOG_QUEUE = queue.Queue()
 
-# [AI INSTANCES]
+# [AI INSTANCES - Sử dụng weak references]
 superego = None
 plasticity = None
 dreamer = None
@@ -150,13 +151,38 @@ os.makedirs(os.path.dirname(CHAT_LOG_FILE), exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'json', 'csv', 'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'py', 'js', 'html', 'css', 'md'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'webp'}
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
 
 def allowed_image(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_IMAGE_EXTENSIONS
 
 def allowed_file(filename):
-    is_valid_ext = filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-    return '.' in filename and (is_valid_ext or allowed_image(filename))
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS or ext in ALLOWED_IMAGE_EXTENSIONS
+
+def validate_file_size(file_stream):
+    """Validate file size to prevent large uploads"""
+    file_stream.seek(0, 2)  # Seek to end
+    size = file_stream.tell()
+    file_stream.seek(0)  # Reset position
+    return size <= MAX_FILE_SIZE
+
+def sanitize_filename(filename):
+    """Sanitize filename to prevent path traversal"""
+    import re
+    # Remove path separators and dangerous characters
+    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    # Remove any directory paths
+    filename = os.path.basename(filename)
+    # Ensure filename is not empty
+    if not filename or filename.startswith('.'):
+        return 'upload_' + str(uuid.uuid4())[:8]
+    return secure_filename(filename)
 
 def web_log(message: str):
     timestamp = time.strftime("%H:%M:%S")
@@ -526,15 +552,54 @@ def chat():
             last_upt_values = (at, et, ct)
             last_upt_metrics.update(new_met)
 
-        # --- [NÂNG CẤP] Thay thế bằng Vector Memory System ---
-        # Lấy ký ức dài hạn liên quan từ Pinecone/Chroma/FAISS
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            docs = loop.run_until_complete(vector_memory.search_similar(msg, k=3))
-        except RuntimeError:
-            # Fallback for sync context
-            docs = asyncio.run(vector_memory.search_similar(msg, k=3))
+        # --- [NÂNG CẤP] VECTOR MEMORY SYSTEM ---
+        # 1. Lưu câu nói của user vào bộ nhớ ngắn hạn
+        if vector_memory:
+            try:
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, create a task
+                    task = asyncio.create_task(
+                        vector_memory.add_memory(
+                            f"User: {msg}",
+                            metadata={
+                                'type': 'user_input',
+                                'message': msg,
+                                'timestamp': time.time()
+                            }
+                        )
+                    )
+                except RuntimeError:
+                    # No running loop, safe to use asyncio.run
+                    asyncio.run(
+                        vector_memory.add_memory(
+                            f"User: {msg}",
+                            metadata={
+                                'type': 'user_input',
+                                'message': msg,
+                                'timestamp': time.time()
+                            }
+                        )
+                    )
+            except Exception as e:
+                web_log(f"Vector Memory Error: {e}")
+        
+        # 2. Truy xuất ký ức dài hạn liên quan
+        docs = []
+        if vector_memory:
+            try:
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, create a task
+                    task = asyncio.create_task(vector_memory.search_similar(msg, k=3))
+                    docs = task.result() if not task.done() else task.result()
+                except RuntimeError:
+                    # No running loop, safe to use asyncio.run
+                    docs = asyncio.run(vector_memory.search_similar(msg, k=3))
+            except Exception as e:
+                web_log(f"Vector Memory Search Error: {e}")
 
         with torch.no_grad():
             pred = deloris_model(vec, last_upt_metrics)
@@ -568,25 +633,93 @@ def chat():
         )
         
         # --- [NÂNG CẤP] Lưu tương tác vào Vector Memory ---
-        try:
-            # Save conversation to vector memory
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(
-                vector_memory.add_memory(
-                    f"User: {msg}\nDeloris: {safe_resp}",
-                    metadata={
-                        'type': 'conversation',
-                        'user_message': msg,
-                        'deloris_response': safe_resp,
-                        'inner_thought': inner_thought,
-                        'predicted_class': cls,
-                        'upt_metrics': new_met,
-                        'predicted_sentiment': predicted_sentiment
-                    }
-                )
-            )
-        except Exception as e:
-            web_log(f"Vector Memory Save Error: {e}")
+        if vector_memory:
+            try:
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, create a task
+                    task = asyncio.create_task(
+                        vector_memory.add_memory(
+                            f"User: {msg}\nDeloris: {safe_resp}",
+                            metadata={
+                                'type': 'conversation',
+                                'user_message': msg,
+                                'deloris_response': safe_resp,
+                                'inner_thought': inner_thought,
+                                'predicted_class': cls,
+                                'upt_metrics': new_met,
+                                'predicted_sentiment': predicted_sentiment
+                            }
+                        )
+                    )
+                except RuntimeError:
+                    # No running loop, safe to use asyncio.run
+                    asyncio.run(
+                        vector_memory.add_memory(
+                            f"User: {msg}\nDeloris: {safe_resp}",
+                            metadata={
+                                'type': 'conversation',
+                                'user_message': msg,
+                                'deloris_response': safe_resp,
+                                'inner_thought': inner_thought,
+                                'predicted_class': cls,
+                                'upt_metrics': new_met,
+                                'predicted_sentiment': predicted_sentiment
+                            }
+                        )
+                    )
+            except Exception as e:
+                web_log(f"Vector Memory Save Error: {e}")
+        
+        # --- [NÂNG CẤP] RLHF DATA COLLECTION (Chạy ngầm) ---
+        if rlhf_collector:
+            def run_rlhf_collection():
+                # Chạy asyncio trong luồng riêng để không chặn phản hồi Web
+                asyncio.run(rlhf_collector.collect_interaction(
+                    input_text=msg,
+                    inner_thought=inner_thought,
+                    response=safe_resp,
+                    predicted_class=cls,
+                    upt_metrics=last_upt_metrics
+                ))
+            threading.Thread(target=run_rlhf_collection, daemon=True).start()
+            
+        # Cũng lưu phản hồi của Deloris vào bộ nhớ ngắn hạn
+        if vector_memory:
+            try:
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, create a task
+                    task = asyncio.create_task(
+                        vector_memory.add_memory(
+                            f"Deloris: {safe_resp}",
+                            metadata={
+                                'type': 'assistant_response',
+                                'message': safe_resp,
+                                'inner_thought': inner_thought,
+                                'predicted_class': cls,
+                                'timestamp': time.time()
+                            }
+                        )
+                    )
+                except RuntimeError:
+                    # No running loop, safe to use asyncio.run
+                    asyncio.run(
+                        vector_memory.add_memory(
+                            f"Deloris: {safe_resp}",
+                            metadata={
+                                'type': 'assistant_response',
+                                'message': safe_resp,
+                                'inner_thought': inner_thought,
+                                'predicted_class': cls,
+                                'timestamp': time.time()
+                            }
+                        )
+                    )
+            except Exception as e:
+                web_log(f"Vector Memory Assistant Save Error: {e}")
         
         # Return response with consciousness data
         return jsonify({
@@ -601,9 +734,23 @@ def chat():
 
 @app.route('/api/sentinel', methods=['POST'])
 def sentinel_eye():
-    if 'file' not in request.files: return jsonify({'message': None})
+    if 'file' not in request.files:
+        return jsonify({'message': None})
+    
     f = request.files['file']
+    if f.filename == '':
+        return jsonify({'message': None})
+    
+    # Validate file is an image
+    if not allowed_image(f.filename):
+        return jsonify({'error': 'Invalid image format'}), 400
+    
+    # Validate file size
+    if not validate_file_size(f.stream):
+        return jsonify({'error': 'Image file too large (max 50MB)'}), 413
+    
     try:
+        # Generate safe filename
         temp_filename = f"sentinel_{uuid.uuid4()}.jpg"
         temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
         f.save(temp_path)
@@ -660,15 +807,34 @@ def sentinel_eye():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'file' not in request.files: return jsonify({'error': 'No file'}), 400
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
     f = request.files['file']
-    if f and allowed_file(f.filename):
-        n = secure_filename(f.filename)
-        path = os.path.join(UPLOAD_FOLDER, n)
+    if f.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Validate file size
+    if not validate_file_size(f.stream):
+        return jsonify({'error': 'File too large (max 50MB)'}), 413
+    
+    # Validate file type
+    if not allowed_file(f.filename):
+        return jsonify({'error': 'Invalid file type'}), 400
+    
+    # Sanitize filename
+    safe_name = sanitize_filename(f.filename)
+    path = os.path.join(UPLOAD_FOLDER, safe_name)
+    
+    # Save file
+    try:
         f.save(path)
-        threading.Thread(target=lambda: _ingest_file(n), daemon=True).start()
-        return jsonify({'message': 'OK'})
-    return jsonify({'error': 'Invalid'}), 400
+        # Start ingestion in background thread
+        threading.Thread(target=lambda: _ingest_file(safe_name), daemon=True).start()
+        return jsonify({'message': 'File uploaded successfully', 'filename': safe_name})
+    except Exception as e:
+        web_log(f"File upload error: {e}")
+        return jsonify({'error': 'Failed to save file'}), 500
 
 def _ingest_file(fname):
     try:
@@ -805,7 +971,6 @@ def feedback():
     except Exception as e:
         web_log(f"Feedback error: {e}")
         return jsonify({'success': False, 'message': str(e)})
-    except Exception as e: return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/sleep', methods=['POST'])
 def trigger_sleep():

@@ -1,4 +1,5 @@
 Flask
+Flask-CORS
 google-generativeai
 numpy
 sentence-transformers
@@ -20,3 +21,4 @@ trl
 wandb
 asyncio
 aiofiles
+edge-tts

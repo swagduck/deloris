@@ -7,7 +7,7 @@ print("--- [Kiểm tra Mô hình Gemini (Thử nghiệm Trực tiếp)] ---")
 try:
     # ***** THAY ĐỔI Ở ĐÂY *****
     # Bỏ qua os.environ.get và dán thẳng key của bạn vào đây
-    API_KEY = "AIzaSyBWK61Xijd6m9Imlohe4V5W192hU77Nh58" 
+    API_KEY = "AIzaSyADkf02I7ecybIlTHObYQuA4KoELi2mu5Q" 
     # Ví dụ: API_KEY = "AIzaSyBWK61X..."
     
     if not API_KEY or API_KEY == "DÁN_KEY_CỦA_BẠN_VÀO_ĐÂY":

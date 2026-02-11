@@ -93,7 +93,7 @@ def detect_art_intent(message, pulse_value):
             return True, message 
             
     # 2. Cảm xúc thăng hoa (Tự động vẽ - Prompt tiếng Anh sẵn)
-    if pulse_value > 8.5:
+    if pulse_value > 9.5:
         return True, "Abstract art representing pure joy and energy, cyberpunk style, neon colors"
         
     return False, None
