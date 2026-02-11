@@ -7,6 +7,7 @@ import re
 import time
 import google.generativeai as genai
 import config
+from .sandbox import sandbox_executor
 
 class NeuralCoder:
     def __init__(self, upload_dir):
@@ -67,3 +68,22 @@ class NeuralCoder:
         except Exception as e:
             print(f"⚠️ [CODER ERROR] Gãy phím: {e}")
             return None, None
+
+    def execute_script_secure(self, script_name: str, script_content: str):
+        """
+        Thực thi script trong sandbox an toàn.
+        Trả về: dict với success, output, generated_files
+        """
+        if not sandbox_executor:
+            print("⚠️ [CODER] Sandbox không sẵn sàng, không thể thực thi an toàn.")
+            return {'success': False, 'output': 'Sandbox not available'}
+        
+        print(f"🔒 [CODER] Thực thi an toàn: {script_name}")
+        result = sandbox_executor.execute_script(script_name, script_content)
+        
+        if result['success']:
+            print(f"   -> ✅ Thực thi thành công")
+        else:
+            print(f"   -> ❌ Thực thi thất bại: {result['output']}")
+        
+        return result

@@ -1,0 +1,53 @@
+# requirements_deloris_os.txt
+# [DEPENDENCIES: DIGITAL LIFEFORM OS]
+# Enhanced requirements for the upgraded Deloris system
+
+# Core Flask and Web
+flask==2.3.3
+flask-cors==4.0.0
+flask-socketio==5.3.6
+werkzeug==2.3.7
+
+# AI and Machine Learning
+torch>=2.0.0
+transformers>=4.35.0
+sentence-transformers>=2.2.2
+langchain>=0.0.350
+langchain-community>=0.0.10
+faiss-cpu>=1.7.4
+google-generativeai>=0.3.0
+
+# Computer Vision
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Data Processing
+numpy>=1.24.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+
+# System and Automation
+pyautogui>=0.9.54
+psutil>=5.9.0
+
+# Docker Integration
+docker>=6.1.0
+
+# Audio Processing
+edge-tts>=6.1.0
+pydub>=0.25.0
+
+# Web3 and Crypto
+web3>=6.11.0
+eth-account>=0.9.0
+
+# Async and Concurrency
+asyncio-mqtt>=0.13.0
+aiofiles>=23.2.1
+
+# Environment and Configuration
+python-dotenv>=1.0.0
+
+# Development and Debugging
+pytest>=7.4.0
+black>=23.9.0

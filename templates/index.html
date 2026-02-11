@@ -33,6 +33,7 @@
       async
       src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
     ></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
       :root {
         --bg-deep: #020408;
@@ -647,6 +648,43 @@
         <div class="panel-head">
           <span>NEURAL LINK FEED</span> <span>LIVE</span>
         </div>
+        <div class="sci-fi-panel" id="reactor-panel" style="display: none;">
+          <div class="panel-header">
+            <i class="fas fa-atom"></i>
+            <span>UPT REACTOR</span>
+            <div class="reactor-controls">
+              <button id="reactor-start-btn" class="reactor-btn">
+                <i class="fas fa-play"></i> Start
+              </button>
+              <button id="reactor-stop-btn" class="reactor-btn">
+                <i class="fas fa-stop"></i> Stop
+              </button>
+            </div>
+          </div>
+          <div class="reactor-content">
+            <div class="reactor-metrics">
+              <div class="metric-item">
+                <span class="metric-label">Stability</span>
+                <span class="metric-value" id="stability-value">0.00</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Pulse</span>
+                <span class="metric-value" id="pulse-value">0.0</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Temperature</span>
+                <span class="metric-value" id="temp-value">300K</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Efficiency</span>
+                <span class="metric-value" id="efficiency-value">0%</span>
+              </div>
+            </div>
+            <div class="reactor-visualization">
+              <img id="reactor-image" src="" alt="Reactor Visualization" />
+            </div>
+          </div>
+        </div>
         <div class="chat-content" id="chatBox">
           <div class="msg deloris">
             <div class="bubble">
@@ -1171,6 +1209,97 @@
         if (rec) rec.start();
         else alert("No Mic support");
       }
+
+      // --- REACTOR DASHBOARD ---
+      let socket = null;
+      let reactorPanelVisible = false;
+
+      function initReactorSocket() {
+        if (typeof io === 'undefined') {
+          console.warn('Socket.IO not loaded');
+          return;
+        }
+
+        socket = io();
+        
+        socket.on('connect', () => {
+          console.log('Connected to reactor service');
+        });
+
+        socket.on('reactor_status', (data) => {
+          updateReactorMetrics(data.metrics);
+        });
+
+        socket.on('reactor_update', (data) => {
+          updateReactorMetrics(data.metrics);
+        });
+
+        socket.on('reactor_image', (data) => {
+          const img = document.getElementById('reactor-image');
+          if (img) img.src = data.image;
+        });
+      }
+
+      function updateReactorMetrics(metrics) {
+        if (!metrics) return;
+        
+        const elements = {
+          'stability-value': metrics.stability?.toFixed(2) || '0.00',
+          'pulse-value': metrics.pulse?.toFixed(1) || '0.0',
+          'temp-value': `${Math.round(metrics.temperature || 300)}K`,
+          'efficiency-value': `${((metrics.efficiency || 0) * 100).toFixed(1)}%`
+        };
+
+        Object.entries(elements).forEach(([id, value]) => {
+          const element = document.getElementById(id);
+          if (element) element.textContent = value;
+        });
+      }
+
+      function toggleReactorPanel() {
+        const panel = document.getElementById('reactor-panel');
+        reactorPanelVisible = !reactorPanelVisible;
+        panel.style.display = reactorPanelVisible ? 'block' : 'none';
+        
+        if (reactorPanelVisible && !socket) {
+          initReactorSocket();
+        }
+      }
+
+      // Reactor control buttons
+      document.addEventListener('DOMContentLoaded', () => {
+        const startBtn = document.getElementById('reactor-start-btn');
+        const stopBtn = document.getElementById('reactor-stop-btn');
+        
+        if (startBtn) {
+          startBtn.addEventListener('click', () => {
+            if (socket) socket.emit('start_reactor', { c_geo: 0.911, tau_ion: 0.080 });
+          });
+        }
+        
+        if (stopBtn) {
+          stopBtn.addEventListener('click', () => {
+            if (socket) socket.emit('stop_reactor');
+          });
+        }
+      });
+
+      // Add reactor toggle button to controls
+      function addReactorToggleButton() {
+        const controls = document.querySelector('.input-dock .icon-btn-group');
+        if (controls && !document.getElementById('reactor-toggle-btn')) {
+          const reactorBtn = document.createElement('button');
+          reactorBtn.id = 'reactor-toggle-btn';
+          reactorBtn.className = 'icon-btn';
+          reactorBtn.innerHTML = '<i class="fas fa-atom"></i>';
+          reactorBtn.onclick = toggleReactorPanel;
+          reactorBtn.title = 'Toggle Reactor Dashboard';
+          controls.appendChild(reactorBtn);
+        }
+      }
+
+      // Initialize reactor toggle button
+      setTimeout(addReactorToggleButton, 1000);
 
       // --- NOTIFICATIONS LOOP ---
       setInterval(async () => {
